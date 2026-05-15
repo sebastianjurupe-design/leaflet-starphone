@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mapa de Clientes - SoloHour Bolivia</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap"
+        rel="stylesheet" />
+    <style>
+        :root {
+            --bg: #f5f4f0;
+            --surface: #ffffff;
+            --border: #e2e0d8;
+            --accent: #33D0C9;
+            --accent2: #112032;
+            --text: #1a1a14;
+            --muted: #8a8878;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 32px 24px;
+        }
+
+        .wrapper {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            margin-bottom: 32px;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .header-left {}
+
+        .eyebrow {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 8px;
+        }
+
+        h1 {
+
+            font-size: 38px;
+            font-weight: 800;
+            line-height: 1.05;
+            color: var(--text);
+        }
+
+        h1 span {
+            color: var(--accent);
+        }
+
+        .total-badge {
+            background: var(--accent);
+            color: #ffffff;
+
+            font-weight: 800;
+            font-size: 13px;
+            padding: 8px 18px;
+            border-radius: 100px;
+            letter-spacing: 1px;
+            white-space: nowrap;
+        }
+
+        /* Stats */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 640px) {
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px 20px;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.2s;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--accent);
+        }
+
+        .stat-card:nth-child(2)::before {
+            background: var(--accent2);
+        }
+
+        .stat-card:nth-child(3)::before {
+            background: #5ba4ff;
+        }
+
+        .stat-card:nth-child(4)::before {
+            background: #7ee8a2;
+        }
+
+        .stat-value {
+
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--text);
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--muted);
+            font-weight: 400;
+            letter-spacing: 0.5px;
+        }
+
+        /* Layout: map + sidebar */
+        .map-layout {
+            display: grid;
+            grid-template-columns: 1fr 280px;
+            gap: 16px;
+        }
+
+        @media (max-width: 800px) {
+            .map-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        #map {
+            height: 540px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .sidebar-title {
+
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+
+        .city-row {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 16px;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .city-row:hover,
+        .city-row.active {
+            border-color: var(--accent);
+            background: #fdf8ec;
+        }
+
+        .city-name {
+
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .city-count {
+
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--accent);
+        }
+
+        .city-sub {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        /* Tooltip / popup override */
+        .leaflet-popup-content-wrapper {
+            background: #ffffff !important;
+            border: 1px solid #e2e0d8 !important;
+            border-radius: 12px !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12) !important;
+            color: #1a1a14 !important;
+            font-family: 'DM Sans', sans-serif !important;
+        }
+
+        .leaflet-popup-tip {
+            background: #ffffff !important;
+        }
+
+        .leaflet-popup-content {
+            margin: 14px 16px !important;
+        }
+
+        .popup-city {
+            font-size: 15px;
+            font-weight: 800;
+             color: #33D0C9;
+            margin-bottom: 6px;
+        }
+
+        .popup-count {
+            font-size: 32px;
+            font-weight: 700;
+
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+
+        .popup-label {
+            font-size: 12px;
+            color: #8a8878;
+        }
+
+        .popup-markets {
+            margin-top: 10px;
+            border-top: 1px solid #e2e0d8;
+            padding-top: 10px;
+        }
+
+        .popup-market-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            padding: 2px 0;
+        }
+
+        .popup-market-name {
+            color: #6a6858;
+        }
+
+        .popup-market-n {
+             color: #33D0C9;
+            font-weight: 600;
+        }
+
+        .note {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 12px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrapper">
+
+        <div class="header">
+            <div class="header-left">
+                <div class="eyebrow">Red de distribución · Mayo 2025</div>
+                <h1>Clientes <span>Bolivia</span></h1>
+            </div>
+            <div class="total-badge">258 tiendas en total</div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value">258</div>
+                <div class="stat-label">Tiendas totales</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">7</div>
+                <div class="stat-label">Ciudades activas</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">22</div>
+                <div class="stat-label">Mercados cubiertos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">66</div>
+                <div class="stat-label">Mayor concentración</div>
+            </div>
+        </div>
+
+        <div class="map-layout">
+            <div id="map"></div>
+
+            <div class="sidebar">
+                <div class="sidebar-title">Ciudades</div>
+                <!-- city rows filled by JS -->
+            </div>
+        </div>
+
+        <p class="note">Haz clic en un punto del mapa o en una ciudad para ver el detalle de mercados.</p>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
+    <script>
+        const cities = [
+            {
+                name: 'Santa Cruz',
+                count: 66,
+                lat: -17.7833,
+                lng: -63.1822,
+                markets: [
+                    { name: 'Comercial Grigota', n: 27 },
+                    { name: 'Modelo Grigota', n: 15 },
+                    { name: 'CCN', n: 7 },
+                    { name: 'Mutualista', n: 8 },
+                    { name: 'Plan 3000', n: 6 },
+                    { name: 'Comercial Las Américas', n: 2 },
+                    { name: 'Comercial Ramada', n: 1 },
+                ]
+            },
+            {
+                name: 'La Paz',
+                count: 58,
+                lat: -16.5000,
+                lng: -68.1500,
+                markets: [
+                    { name: 'Buenos Aires', n: 28 },
+                    { name: 'Eloy Salmón', n: 11 },
+                    { name: 'Uyustus', n: 10 },
+                    { name: 'Pedro de la Gasca', n: 9 },
+                ]
+            },
+            {
+                name: 'El Alto',
+                count: 45,
+                lat: -16.3800,
+                lng: -68.2500,
+                markets: [
+                    { name: 'La Ceja', n: 42 },
+                    { name: 'Mercedes Camacho', n: 3 },
+                ]
+            },
+            {
+                name: 'Cochabamba',
+                count: 45,
+                lat: -17.3895,
+                lng: -66.1568,
+                markets: [
+                    { name: 'Ayacucho', n: 28 },
+                    { name: '25 de Mayo', n: 10 },
+                    { name: 'Punata', n: 5 },
+                    { name: 'Esteban Arze', n: 1 },
+                    { name: 'Quillacollo', n: 1 },
+                ]
+            },
+            {
+                name: 'Sucre',
+                count: 32,
+                lat: -19.0435,
+                lng: -65.2592,
+                markets: [
+                    { name: 'Campesino', n: 22 },
+                    { name: 'Central', n: 10 },
+                ]
+            },
+            {
+                name: 'Oruro',
+                count: 9,
+                lat: -17.9833,
+                lng: -67.1500,
+                markets: [
+                    { name: 'Calle Bolívar', n: 9 },
+                ]
+            },
+            {
+                name: 'Llallagua',
+                count: 3,
+                lat: -18.4167,
+                lng: -66.5667,
+                markets: [
+                    { name: 'Calle Linares', n: 3 },
+                ]
+            },
+        ];
+
+        // Map init
+        const map = L.map('map', {
+            center: [-17.0, -65.5],
+            zoom: 6,
+            minZoom: 5,
+            maxZoom: 14,
+            scrollWheelZoom: false,
+            zoomControl: true,
+        });
+
+        // Dark tile layer
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap © CARTO',
+            maxZoom: 19
+        }).addTo(map);
+
+        map.on('focus', () => map.scrollWheelZoom.enable());
+        map.on('blur', () => map.scrollWheelZoom.disable());
+
+        // Scale: bigger circle = more stores
+        const maxCount = Math.max(...cities.map(c => c.count));
+
+        function getRadius(count) {
+            return 12 + (count / maxCount) * 18;
+        }
+
+        function getColor(count) {
+            if (count >= 50) return '#33D0C9';
+            if (count >= 30) return '#112032';
+            if (count >= 10) return '#5ba4ff';
+            return '#7ee8a2';
+        }
+
+        function buildPopup(city) {
+            const marketsHtml = city.markets.map(m =>
+                `<div class="popup-market-row">
+        <span class="popup-market-name">${m.name}</span>
+        <span class="popup-market-n">${m.n}</span>
+      </div>`
+            ).join('');
+
+            return `
+      <div class="popup-city">${city.name}</div>
+      <div class="popup-count">${city.count}</div>
+      <div class="popup-label">tiendas activas</div>
+      <div class="popup-markets">
+        ${marketsHtml}
+      </div>
+    `;
+        }
+
+        const markers = {};
+
+        cities.forEach(city => {
+            const r = getRadius(city.count);
+            const color = getColor(city.count);
+
+            const icon = L.divIcon({
+                className: '',
+                html: `<div style="
+        width: ${r * 2}px;
+        height: ${r * 2}px;
+        border-radius: 50%;
+        background: ${color}22;
+        border: 2px solid ${color};
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #1a1a14;
+        font-size: 12px;
+        font-weight: 800;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        cursor: pointer;
+        transition: all 0.2s;
+      ">${city.count}</div>`,
+                iconSize: [r * 2, r * 2],
+                iconAnchor: [r, r],
+            });
+
+            const marker = L.marker([city.lat, city.lng], { icon })
+                .addTo(map)
+                .bindPopup(buildPopup(city), { maxWidth: 240 });
+
+            markers[city.name] = marker;
+        });
+
+        // Sidebar
+        const sidebar = document.querySelector('.sidebar');
+        let activeRow = null;
+
+        cities.sort((a, b) => b.count - a.count).forEach(city => {
+            const row = document.createElement('div');
+            row.className = 'city-row';
+            row.innerHTML = `
+      <div>
+        <div class="city-name">${city.name}</div>
+        <div class="city-sub">${city.markets.length} mercado${city.markets.length > 1 ? 's' : ''}</div>
+      </div>
+      <div class="city-count">${city.count}</div>
+    `;
+            row.addEventListener('click', () => {
+                if (activeRow) activeRow.classList.remove('active');
+                row.classList.add('active');
+                activeRow = row;
+                map.flyTo([city.lat, city.lng], 10, { duration: 1.2 });
+                markers[city.name].openPopup();
+            });
+            sidebar.appendChild(row);
+        });
+    </script>
+</body>
+
+</html>
